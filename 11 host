@@ -91,6 +91,43 @@ $remainingApps = Get-WmiObject -Query "SELECT * FROM Win32_Product WHERE Name LI
 if ($remainingApps) {
     foreach ($app in $remainingApps) {
         Write-Host "Found remaining installation: $($app.Name). Attempting to uninstall..."
-        $app.Uninstall()
+        try {
+            $app.Uninstall()
+            Write-Host "$($app.Name) has been uninstalled."
+        } catch {
+            Write-Host "Failed to uninstall $($app.Name). Error: $_"
+        }
     }
 }
+
+# Forcefully remove any remaining files and registry entries if necessary
+$teamViewerPaths = @(
+    "C:\Program Files\TeamViewer",
+    "C:\Program Files (x86)\TeamViewer",
+    "C:\ProgramData\TeamViewer",
+    "C:\Users\$env:USERNAME\AppData\Local\TeamViewer",
+    "C:\Users\$env:USERNAME\AppData\Roaming\TeamViewer"
+)
+
+foreach ($path in $teamViewerPaths) {
+    if (Test-Path $path) {
+        Write-Host "Removing remaining files at $path..."
+        Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# Clean up registry entries
+$teamViewerRegistryPaths = @(
+    "HKLM:\SOFTWARE\TeamViewer",
+    "HKLM:\SOFTWARE\Wow6432Node\TeamViewer",
+    "HKCU:\Software\TeamViewer"
+)
+
+foreach ($regPath in $teamViewerRegistryPaths) {
+    if (Test-Path $regPath) {
+        Write-Host "Removing registry key $regPath..."
+        Remove-Item -Path $regPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Write-Host "All TeamViewer installations and remnants have been removed."
