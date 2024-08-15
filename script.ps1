@@ -4,7 +4,7 @@ $uninstallPaths = @(
     "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
 )
 
-# Loop through each uninstall path
+# Loop through each uninstall path to find TeamViewer installations
 foreach ($path in $uninstallPaths) {
     # Get all installed applications
     $installedApps = Get-ItemProperty $path -ErrorAction SilentlyContinue
@@ -36,7 +36,16 @@ foreach ($path in $uninstallPaths) {
     }
 }
 
-# Additional cleanup for TeamViewer installations that might not be found via the uninstall string
+# Attempt to uninstall the MSI Wrapper using WMIC
+try {
+    Write-Host "Attempting to uninstall TeamViewer 11 Host (MSI Wrapper)..."
+    wmic product where "name='TeamViewer 11 Host (MSI Wrapper)'" call uninstall /nointeractive
+    Write-Host "TeamViewer 11 Host (MSI Wrapper) has been uninstalled."
+} catch {
+    Write-Host "Failed to uninstall TeamViewer 11 Host (MSI Wrapper). Error: $_"
+}
+
+# Additional cleanup for any remaining TeamViewer installations
 $msiUninstallPaths = @(
     "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Products\*"
 )
