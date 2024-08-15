@@ -1,8 +1,35 @@
+# Function to uninstall TeamViewer using WMIC
+function Uninstall-TeamViewer {
+    param (
+        [string]$appName
+    )
+
+    try {
+        Write-Host "Attempting to uninstall $appName..."
+        $result = wmic product where "name='$appName'" call uninstall /nointeractive
+        if ($result.ReturnValue -eq 0) {
+            Write-Host "$appName has been uninstalled successfully."
+        } else {
+            Write-Host "Failed to uninstall $appName. Return code: $($result.ReturnValue)"
+        }
+    } catch {
+        Write-Host "Error during uninstallation of $appName: $_"
+    }
+}
+
 # Define the registry paths to search for installed applications
 $uninstallPaths = @(
     "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
     "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
 )
+
+# Check for and stop any running TeamViewer processes
+try {
+    Stop-Process -Name "TeamViewer" -Force -ErrorAction SilentlyContinue
+    Write-Host "Stopped any running TeamViewer processes."
+} catch {
+    Write-Host "No running TeamViewer processes found."
+}
 
 # Loop through each uninstall path to find TeamViewer installations
 foreach ($path in $uninstallPaths) {
@@ -36,13 +63,21 @@ foreach ($path in $uninstallPaths) {
     }
 }
 
-# Attempt to uninstall the MSI Wrapper using WMIC
-try {
-    Write-Host "Attempting to uninstall TeamViewer 11 Host (MSI Wrapper)..."
-    wmic product where "name='TeamViewer 11 Host (MSI Wrapper)'" call uninstall /nointeractive
-    Write-Host "TeamViewer 11 Host (MSI Wrapper) has been uninstalled."
-} catch {
-    Write-Host "Failed to uninstall TeamViewer 11 Host (MSI Wrapper). Error: $_"
+# Attempt to uninstall TeamViewer 11 Host using WMIC
+Uninstall-TeamViewer -appName "TeamViewer 11 Host"
+
+# Attempt to uninstall TeamViewer 11 Host (MSI Wrapper) using WMIC
+Uninstall-TeamViewer -appName "TeamViewer 11 Host (MSI Wrapper)"
+
+# Attempt to uninstall TeamViewer 15 if present
+Uninstall-TeamViewer -appName "TeamViewer 15"
+
+# Directly call the uninstall executable if known
+$teamViewerUninstallPath = "C:\Program Files\TeamViewer\uninstall.exe"
+if (Test-Path $teamViewerUninstallPath) {
+    Write-Host "Directly calling the uninstall executable..."
+    Start-Process -FilePath $teamViewerUninstallPath -ArgumentList "/S" -Wait
+    Write-Host "TeamViewer has been uninstalled using the direct uninstall executable."
 }
 
 # Additional cleanup for any remaining TeamViewer installations
@@ -66,3 +101,5 @@ foreach ($msiPath in $msiUninstallPaths) {
         }
     }
 }
+
+# Final check for any remaining TeamViewer installations
