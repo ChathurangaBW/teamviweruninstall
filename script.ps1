@@ -1,13 +1,12 @@
 # Define log file path
-$logPath = "C:\Temp\TeamViewerUninstallRemote.log"
+$logPath = "C:\Temp\TeamViewerUninstall.log"
 
 # Function to log messages
 function Write-Log {
     param (
-        [string]$ComputerName,
         [string]$Message
     )
-    Add-Content -Path $logPath -Value "$([DateTime]::Now) - $ComputerName - $Message"
+    Add-Content -Path $logPath -Value "$([DateTime]::Now) - $Message"
 }
 
 # Function to execute a process
@@ -21,82 +20,55 @@ function Execute-Process {
 
 # Function to stop the TeamViewer service
 function Stop-TeamViewerService {
-    param (
-        [string]$ComputerName
-    )
-    Write-Log -ComputerName $ComputerName -Message "Attempting to stop TeamViewer service."
-    Invoke-Command -ComputerName $ComputerName -ScriptBlock {
-        param ($serviceName)
-        try {
-            Stop-Service -Name $serviceName -Force -ErrorAction Stop
-            Write-Log -ComputerName $env:COMPUTERNAME -Message "Successfully stopped TeamViewer service."
-        } catch {
-            Write-Log -ComputerName $env:COMPUTERNAME -Message "Failed to stop TeamViewer service: $_"
-        }
-    } -ArgumentList "TeamViewer"
-}
-
-# Function to get all computers in the domain (or network)
-function Get-AllComputers {
-    # For domain environments
-    if (Get-Command Get-ADComputer -ErrorAction SilentlyContinue) {
-        return Get-ADComputer -Filter * | Select-Object -ExpandProperty Name
-    } else {
-        # For non-domain environments, you might need another method, such as reading from a network discovery tool.
-        Write-Error "Get-ADComputer cmdlet is not available. Please provide an alternative method to get all computers."
-        return @()
+    Write-Log -Message "Attempting to stop TeamViewer service."
+    try {
+        Stop-Service -Name "TeamViewer" -Force -ErrorAction Stop
+        Write-Log -Message "Successfully stopped TeamViewer service."
+    } catch {
+        Write-Log -Message "Failed to stop TeamViewer service: $_"
     }
 }
 
 # Main script logic
-$AllComputers = Get-AllComputers
+# Stop the TeamViewer service
+Stop-TeamViewerService
 
-foreach ($computerName in $AllComputers) {
-    # Stop the TeamViewer service on the remote computer
-    Stop-TeamViewerService -ComputerName $computerName
+# Start the uninstallation process
+Write-Log -Message "Starting TeamViewer uninstallation."
 
-    # Start a remote PowerShell session on the computer.
-    Invoke-Command -ComputerName $computerName -ScriptBlock {
-        param ($logPath)
+try {
+    # Find all apps installed on this machine.
+    $AllApps = Get-ItemProperty "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    
+    # Find the one named TeamViewer.
+    $TeamViewer = $AllApps | Where-Object { $_.DisplayName -Like "TeamViewer*" }
 
-        # Log the start of the process
-        Write-Log -ComputerName $env:COMPUTERNAME -Message "Starting TeamViewer uninstallation."
+    if ($TeamViewer) {
+        foreach ($app in $TeamViewer) {
+            $uninstallString = $app.UninstallString
+            if ($uninstallString) {
+                # Log the uninstall process
+                Write-Log -Message "Found TeamViewer with uninstall string: $uninstallString"
 
-        try {
-            # Find all apps installed on this machine.
-            $AllApps = Get-ItemProperty "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
-            
-            # Find the one named TeamViewer.
-            $TeamViewer = $AllApps | Where-Object { $_.DisplayName -Like "TeamViewer*" }
+                # Remove quotes from the uninstall string if present
+                $uninstallString = $uninstallString.Trim('"')
 
-            if ($TeamViewer) {
-                foreach ($app in $TeamViewer) {
-                    $uninstallString = $app.UninstallString
-                    if ($uninstallString) {
-                        # Log the uninstall process
-                        Write-Log -ComputerName $env:COMPUTERNAME -Message "Found TeamViewer with uninstall string: $uninstallString"
+                # Execute the uninstall command with silent switch
+                Execute-Process -Path $uninstallString -Parameters '/S'
 
-                        # Remove quotes from the uninstall string if present
-                        $uninstallString = $uninstallString.Trim('"')
-
-                        # Execute the uninstall command with silent switch
-                        Execute-Process -Path $uninstallString -Parameters '/S'
-
-                        # Log successful uninstallation
-                        Write-Log -ComputerName $env:COMPUTERNAME -Message "Successfully initiated uninstall for TeamViewer."
-                    } else {
-                        Write-Log -ComputerName $env:COMPUTERNAME -Message "No uninstall string found for TeamViewer."
-                    }
-                }
+                # Log successful uninstallation
+                Write-Log -Message "Successfully initiated uninstall for TeamViewer."
             } else {
-                Write-Log -ComputerName $env:COMPUTERNAME -Message "TeamViewer not found on this machine."
+                Write-Log -Message "No uninstall string found for TeamViewer."
             }
-        } catch {
-            # Log any errors encountered
-            Write-Log -ComputerName $env:COMPUTERNAME -Message "Error encountered: $_"
         }
-
-        # Log the completion of the process
-        Write-Log -ComputerName $env:COMPUTERNAME -Message "Completed TeamViewer uninstallation process."
-    } -ArgumentList $logPath
+    } else {
+        Write-Log -Message "TeamViewer not found on this machine."
+    }
+} catch {
+    # Log any errors encountered
+    Write-Log -Message "Error encountered: $_"
 }
+
+# Log the completion of the process
+Write-Log -Message "Completed TeamViewer uninstallation process."
