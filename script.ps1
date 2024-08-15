@@ -47,17 +47,15 @@ try {
         foreach ($app in $TeamViewer) {
             $uninstallString = $app.UninstallString
             if ($uninstallString) {
-                # Log the uninstall process
-                Write-Log -Message "Found TeamViewer with uninstall string: $uninstallString"
-
-                # Remove quotes from the uninstall string if present
+                # Ensure the uninstall string is properly formatted for silent uninstallation
                 $uninstallString = $uninstallString.Trim('"')
+                Write-Log -Message "Found TeamViewer with uninstall string: $uninstallString"
 
                 # Execute the uninstall command with silent switch
                 Execute-Process -Path $uninstallString -Parameters '/S'
 
                 # Log successful uninstallation
-                Write-Log -Message "Successfully initiated uninstall for TeamViewer."
+                Write-Log -Message "Successfully initiated silent uninstall for TeamViewer."
             } else {
                 Write-Log -Message "No uninstall string found for TeamViewer."
             }
