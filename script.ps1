@@ -13,7 +13,7 @@ function Uninstall-TeamViewer {
             Write-Host "Failed to uninstall $appName. Return code: $($result.ReturnValue)"
         }
     } catch {
-        Write-Host "Error during uninstallation of $appName: ${$_}"  # Use ${} to reference the error variable
+        Write-Host "Error during uninstallation of $appName: ${$_}"  # Correctly reference the error variable
     }
 }
 
@@ -96,7 +96,7 @@ foreach ($msiPath in $msiUninstallPaths) {
                 Start-Process -FilePath "msiexec.exe" -ArgumentList "/x $($msiApp.PSChildName) /quiet" -Wait
                 Write-Host "$($msiApp.DisplayName) has been uninstalled."
             } catch {
-                Write-Host "Failed to uninstall $($msiApp.DisplayName). Error: ${$_}"  # Use ${} to reference the error variable
+                Write-Host "Failed to uninstall $($msiApp.DisplayName). Error: ${$_}"  # Correctly reference the error variable
             }
         }
     }
@@ -111,7 +111,7 @@ if ($remainingApps) {
             $app.Uninstall()
             Write-Host "$($app.Name) has been uninstalled."
         } catch {
-            Write-Host "Failed to uninstall $($app.Name). Error: ${$_}"  # Use ${} to reference the error variable
+            Write-Host "Failed to uninstall $($app.Name). Error: ${$_}"  # Correctly reference the error variable
         }
     }
 }
