@@ -46,9 +46,14 @@ foreach ($msiPath in $msiUninstallPaths) {
 
     foreach ($msiApp in $msiInstalledApps) {
         if ($msiApp.DisplayName -like "*TeamViewer*") {
-            Write-Host "Uninstalling MSI version of $($msiApp.DisplayName)..."
-            Start-Process -FilePath "msiexec.exe" -ArgumentList "/x $($msiApp.PSChildName) /quiet" -Wait
-            Write-Host "$($msiApp.DisplayName) has been uninstalled."
+            Write-Host "Attempting to uninstall MSI version of $($msiApp.DisplayName)..."
+            try {
+                # Use msiexec to uninstall the MSI version
+                Start-Process -FilePath "msiexec.exe" -ArgumentList "/x $($msiApp.PSChildName) /quiet" -Wait
+                Write-Host "$($msiApp.DisplayName) has been uninstalled."
+            } catch {
+                Write-Host "Failed to uninstall $($msiApp.DisplayName). Error: $_"
+            }
         }
     }
 }
