@@ -1,6 +1,3 @@
-# Define the list of computers to remove TeamViewer from
-$ComputersToRemoveTeamViewerFrom = @("Computer1", "Computer2") # Replace with actual computer names
-
 # Define log file path
 $logPath = "C:\Temp\TeamViewerUninstallRemote.log"
 
@@ -39,10 +36,22 @@ function Stop-TeamViewerService {
     } -ArgumentList "TeamViewer"
 }
 
-# Main script logic
-$ComputersToRemoveTeamViewerFrom | ForEach-Object {
-    $computerName = $_
+# Function to get all computers in the domain (or network)
+function Get-AllComputers {
+    # For domain environments
+    if (Get-Command Get-ADComputer -ErrorAction SilentlyContinue) {
+        return Get-ADComputer -Filter * | Select-Object -ExpandProperty Name
+    } else {
+        # For non-domain environments, you might need another method, such as reading from a network discovery tool.
+        Write-Error "Get-ADComputer cmdlet is not available. Please provide an alternative method to get all computers."
+        return @()
+    }
+}
 
+# Main script logic
+$AllComputers = Get-AllComputers
+
+foreach ($computerName in $AllComputers) {
     # Stop the TeamViewer service on the remote computer
     Stop-TeamViewerService -ComputerName $computerName
 
