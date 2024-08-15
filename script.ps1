@@ -14,14 +14,16 @@ foreach ($path in $uninstallPaths) {
         if ($app.DisplayName -like "*TeamViewer*") {
             # Check if the uninstall string exists
             if ($app.UninstallString) {
-                # Check for the presence of quotes in the uninstall string
+                # Extract the uninstall command
                 $uninstallCommand = $app.UninstallString
-                if ($uninstallCommand -match '"(.*)"') {
+
+                # Handle the command based on whether it has quotes
+                if ($uninstallCommand -match '"(.+?)"') {
                     $uninstallExe = $matches[1]
                     $arguments = $uninstallCommand -replace '"[^"]*"', '' # Remove the executable path from the command
                     # Run the uninstall command silently
                     Write-Host "Uninstalling $($app.DisplayName)..."
-                    Start-Process -FilePath $uninstallExe -ArgumentList $arguments, "/S" -Wait
+                    Start-Process -FilePath $uninstallExe -ArgumentList "/S" -Wait
                     Write-Host "$($app.DisplayName) has been uninstalled."
                 } else {
                     # If the uninstall string does not have quotes, run it directly
@@ -30,6 +32,23 @@ foreach ($path in $uninstallPaths) {
                     Write-Host "$($app.DisplayName) has been uninstalled."
                 }
             }
+        }
+    }
+}
+
+# Additional cleanup for TeamViewer installations that might not be found via the uninstall string
+$msiUninstallPaths = @(
+    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Products\*"
+)
+
+foreach ($msiPath in $msiUninstallPaths) {
+    $msiInstalledApps = Get-ItemProperty $msiPath -ErrorAction SilentlyContinue
+
+    foreach ($msiApp in $msiInstalledApps) {
+        if ($msiApp.DisplayName -like "*TeamViewer*") {
+            Write-Host "Uninstalling MSI version of $($msiApp.DisplayName)..."
+            Start-Process -FilePath "msiexec.exe" -ArgumentList "/x $($msiApp.PSChildName) /quiet" -Wait
+            Write-Host "$($msiApp.DisplayName) has been uninstalled."
         }
     }
 }
