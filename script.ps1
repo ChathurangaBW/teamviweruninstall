@@ -13,7 +13,7 @@ function Uninstall-TeamViewer {
             Write-Host "Failed to uninstall $appName. Return code: $($result.ReturnValue)"
         }
     } catch {
-        Write-Host "Error during uninstallation of $appName: $_"
+        Write-Host "Error during uninstallation of $appName: ${$_}"  # Use ${} to reference the error variable
     }
 }
 
@@ -96,10 +96,54 @@ foreach ($msiPath in $msiUninstallPaths) {
                 Start-Process -FilePath "msiexec.exe" -ArgumentList "/x $($msiApp.PSChildName) /quiet" -Wait
                 Write-Host "$($msiApp.DisplayName) has been uninstalled."
             } catch {
-                Write-Host "Failed to uninstall $($msiApp.DisplayName). Error: $_"
+                Write-Host "Failed to uninstall $($msiApp.DisplayName). Error: ${$_}"  # Use ${} to reference the error variable
             }
         }
     }
 }
 
 # Final check for any remaining TeamViewer installations
+$remainingApps = Get-WmiObject -Query "SELECT * FROM Win32_Product WHERE Name LIKE '%TeamViewer%'"
+if ($remainingApps) {
+    foreach ($app in $remainingApps) {
+        Write-Host "Found remaining installation: $($app.Name). Attempting to uninstall..."
+        try {
+            $app.Uninstall()
+            Write-Host "$($app.Name) has been uninstalled."
+        } catch {
+            Write-Host "Failed to uninstall $($app.Name). Error: ${$_}"  # Use ${} to reference the error variable
+        }
+    }
+}
+
+# Forcefully remove any remaining files and registry entries if necessary
+$teamViewerPaths = @(
+    "C:\Program Files\TeamViewer",
+    "C:\Program Files (x86)\TeamViewer",
+    "C:\ProgramData\TeamViewer",
+    "C:\Users\$env:USERNAME\AppData\Local\TeamViewer",
+    "C:\Users\$env:USERNAME\AppData\Roaming\TeamViewer"
+)
+
+foreach ($path in $teamViewerPaths) {
+    if (Test-Path $path) {
+        Write-Host "Removing remaining files at $path..."
+        Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# Clean up registry entries
+$teamViewerRegistryPaths = @(
+    "HKLM:\SOFTWARE\TeamViewer",
+    "HKLM:\SOFTWARE\Wow6432Node\TeamViewer",
+    "HKCU:\Software\TeamViewer"
+)
+
+foreach ($regPath in $teamViewerRegistryPaths) {
+    if (Test-Path $regPath) {
+        Write-Host "Removing registry key $regPath..."
+        Remove-Item -Path $regPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Write-Host "All TeamViewer installations and remnants have been removed."
